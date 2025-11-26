@@ -1,7 +1,12 @@
 import express from "express";
+import { PORT } from "./config/env.js";
+import taskRoutes from "./routes/tasks.routes.js";
+
 
 const app = express();
-const PORT = 3000;
+app.use(express.json());
+
+app.use("/tasks", taskRoutes);
 
 app.get("/", (req, res) => {
   res.send("API running");
