@@ -176,7 +176,154 @@ Respuesta exitosa:
     "email": "juan@example.com"
   }
 }
+CORS (Cross-Origin Resource Sharing)
+
+¿Qué es CORS?
+
+CORS es un mecanismo de seguridad que controla qué dominios (orígenes) pueden acceder a nuestra API desde un navegador web.
+
+Sin CORS, el navegador bloquea automáticamente las peticiones entre diferentes dominios por seguridad (política Same-Origin)
+
+Con CORS configurado, le dices al servidor "Solo deja entrar peticiones desde http://localhost:5173".
+
+¿Por qué lo implementamos?
+
+•	Problema sin CORS:
+Frontend (localhost:5173) → API (localhost:3000)
+❌ BLOQUEADO por el navegador
+•	Solución con CORS:
+Frontend (localhost:5173) → API (localhost:3000)
+✅ PERMITIDO porque está en la lista
+
+•	Nuestra configuración
+const corsOptions = {
+origin: "http://localhost:5173",  // Solo este dominio puede acceder
+credentials: true,                // Permite envío de cookies y JWT
+optionsSuccessStatus: 200
+};
+
+•	¿Por qué permitimos solo http://localhost:5173?
+
+Seguridad: Evita que sitios maliciosos accedan a nuestra API
+Control: Solo nuestro frontend autorizado puede hacer peticiones
+Producción: En producción cambiaremos a la URL real del frontend desplegado
+
+Ejemplo real: Si un hacker crea un sitio http://sitio-malicioso.com e intenta acceder a nuestra API, el navegador lo bloqueará porque no está en nuestra lista de orígenes permitidos.
+
+Rate Limiting
+
+¿Qué es Rate Limiting?
+
+Rate Limiting limita cuántas peticiones puede hacer un cliente (identificado por IP) en un período de tiempo.
+
+¿Por qué lo implementamos?
+1.	Prevenir ataques de fuerza bruta
+Un atacante intenta miles de contraseñas para entrar a una cuenta:
+	Sin Rate Limiting:
+Atacante intenta:
+- password1 ❌
+- password2 ❌
+- password3 ❌
+... 10,000 intentos más en 1 minuto ❌
+- password10000 ✅ ¡Entró!
+
+	Con Rate Limiting (5 intentos/minuto):
+Atacante intenta:
+- password1 ❌
+- password2 ❌
+- password3 ❌
+- password4 ❌
+- password5 ❌
+- password6 🚫 BLOQUEADO: "Demasiados intentos, espera 1 minuto"
+
+2.	Proteger el servidor de sobrecarga
+Evita que alguien (malicioso o no) haga miles de peticiones y tumbe el servidor.
+3.	Ahorrar recursos
+Menos peticiones = menos uso de CPU, memoria y base de datos.
+Nuestra configuración
+Rate Limiter para /auth (Login/Register)
+javascriptconst authLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,  // 1 minuto
+  max: 5,                    // Máximo 5 intentos
+  message: "Demasiados intentos de autenticación"
+});
+
+¿Por qué 5 intentos?
+
+Es suficiente para un usuario legítimo que olvidó su contraseña
+Es muy restrictivo para un atacante automatizado
+Similar a los sistemas bancarios
+
+Escenario real:
+
+Usuario intenta login con contraseña incorrecta: Intento 1/5 ❌
+Vuelve a intentar: Intento 2/5 ❌
+Vuelve a intentar: Intento 3/5 ❌
+Vuelve a intentar: Intento 4/5 ❌
+Vuelve a intentar: Intento 5/5 ❌
+Sexto intento: 🚫 Error 429 "Demasiados intentos, espera 1 minuto"
+
+Rate Limiter para /tasks (CRUD de Tareas)
+javascriptconst tasksLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,  // 1 minuto
+  max: 20,                   // Máximo 20 peticiones
+  message: "Demasiadas peticiones a tareas"
+});
+
+¿Por qué 20 intentos?
+
+Es más permisivo porque son operaciones normales de uso
+Un usuario legítimo podría crear/editar varias tareas seguidas
+Aún protege contra abuso (alguien creando 1000 tareas/minuto)
+
+Códigos de estado HTTP relacionados
+
+200 OK: Petición exitosa
+401 Unauthorized: Token inválido o no enviado
+429 Too Many Requests: Se excedió el límite de peticiones
+
+Headers de Rate Limit
+Cuando haces una petición, el servidor devuelve headers con información:
+RateLimit-Limit: 5          → Límite total
+RateLimit-Remaining: 3      → Peticiones restantes
+RateLimit-Reset: 1638360000 → Timestamp cuando se resetea
+
+Ejemplo de flujo completo con todas las seguridades
+1. Usuario abre el frontend (localhost:5173)
+   ↓
+2. Frontend hace petición a API (localhost:3000)
+   ↓
+3. CORS verifica: ¿Es localhost:5173? ✅ Sí → Continúa
+   ↓
+4. Rate Limiter verifica: ¿Ha hecho menos de 5 peticiones? ✅ Sí → Continúa
+   ↓
+5. Usuario envía { email, password }
+   ↓
+6. bcrypt compara contraseñas ✅ Correcta
+   ↓
+7. Se genera JWT firmado
+   ↓
+8. Frontend recibe token y lo guarda
+   ↓
+9. Usuario quiere ver sus tareas → Envía token
+   ↓
+10. authMiddleware verifica JWT ✅ Válido
+   ↓
+11. Usuario recibe sus tareas ✅
+
+Configuración para diferentes ambientes
+Desarrollo (local)
+origin: "http://localhost:5173"
+max: 5 intentos/minuto (auth)
+
+Producción (desplegado)
+origin: "https://mi-app-frontend.com"
+max: 3 intentos/minuto (auth) // Más restrictivo
+
 Recursos Útiles
-- [JWT.io](https://jwt.io) - Decodificar tokens
-- [jsonwebtoken npm](https://www.npmjs.com/package/jsonwebtoken)
-- [bcryptjs npm](https://www.npmjs.com/package/bcryptjs)
+[JWT.io](https://jwt.io) - Decodificar tokens
+[jsonwebtoken npm](https://www.npmjs.com/package/jsonwebtoken)
+[bcryptjs npm](https://www.npmjs.com/package/bcryptjs)
+CORS MDN
+express-rate-limit npm
+OWASP Rate Limiting
