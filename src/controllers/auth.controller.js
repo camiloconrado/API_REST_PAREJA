@@ -1,6 +1,9 @@
+//archivo auth.controller.js
 import prisma from "../prismaClient.js";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken"; // ← NUEVO: Importar JWT
 
+// ========== FUNCIÓN EXISTENTE DE REGISTRO ==========
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -52,5 +55,74 @@ export const registerUser = async (req, res) => {
   } catch (error) {
     console.error("ERROR in registerUser =>", error);
     return res.status(500).json({ message: "Error registrando usuario" });
+  }
+};
+
+// ========== NUEVA FUNCIÓN DE LOGIN (COMMIT 6) ==========
+export const loginUser = async (req, res) => {
+  try {
+    // PASO 1: Recibir email y password del cliente
+    const { email, password } = req.body;
+
+    // Validar que lleguen los datos
+    if (!email || !password) {
+      return res.status(400).json({ 
+        message: "Email y contraseña son requeridos" 
+      });
+    }
+
+    // Limpiar y normalizar el email
+    const cleanEmail = email.trim().toLowerCase();
+
+    // PASO 2: Buscar usuario en la base de datos
+    const user = await prisma.user.findUnique({
+      where: { email: cleanEmail }
+    });
+
+    // Si no existe el usuario
+    if (!user) {
+      return res.status(401).json({ 
+        message: "Credenciales incorrectas" 
+      });
+    }
+
+    // PASO 3: Comparar la contraseña con bcrypt
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ 
+        message: "Credenciales incorrectas" 
+      });
+    }
+
+    // PASO 4: Generar JWT
+    const token = jwt.sign(
+      {
+        sub: user.id.toString(),        // Subject (estándar JWT)
+        userId: user.id.toString(),     // ID del usuario
+        email: user.email               // Email del usuario
+      },
+      process.env.JWT_SECRET,           // Clave secreta desde .env
+      {
+        expiresIn: "1h"                 // Token válido por 1 hora
+      }
+    );
+
+    // PASO 5: Devolver el token al cliente
+    return res.status(200).json({
+      message: "Login exitoso",
+      token: token,
+      user: {
+        id: user.id.toString(),
+        name: user.name,
+        email: user.email
+      }
+    });
+
+  } catch (error) {
+    console.error("ERROR in loginUser =>", error);
+    return res.status(500).json({ 
+      message: "Error en el servidor" 
+    });
   }
 };

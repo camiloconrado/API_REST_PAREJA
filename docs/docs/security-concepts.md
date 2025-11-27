@@ -42,3 +42,141 @@ Un ejemplo claro es cuando estas en una página o aplicación móvil de compras,
 •	Ejemplo práctico de RATE-LIMIT
 RATE-LIMIT es un limitador de intentos que te permite acceder a una página ya sea del banco, de tu correo y redes sociales
 Un ejemplo claro seria las aplicaciones bancarias que te permiten un máximo de 3 intentos para acceder a tus cuentas bancarias esto se implementa para cuidar tu dinero, funciona igual en tus redes sociales y correos evitando que terceros tengan más oportunidades de descifrar tus claves y perder tu dinero o información personal
+
+
+Cómo implementamos JWT en este proyecto
+¿Qué es JWT?
+JSON Web Token (JWT) es un estándar para transmitir información de forma segura entre el cliente y el servidor. Es como un "pase digital" que identifica al usuario sin necesidad de verificar sus credenciales en cada petición.
+Flujo de Autenticación
+1.	Registro de Usuario
+Cliente → POST /auth/register
+         { name, email, password }
+                ↓
+         Validar datos
+                ↓
+         Encriptar password con bcrypt
+                ↓
+         Guardar en Base de Datos
+                ↓
+Cliente ← Usuario creado
+2.	 Login y Generación de JWT
+Cliente → POST /auth/login
+         { email, password }
+                ↓
+         Buscar usuario en BD
+                ↓
+         Comparar password con bcrypt.compare()
+                ↓
+         Si es correcto → Generar JWT
+                ↓
+Cliente ← Token JWT + Datos del usuario
+
+
+3.	Uso del Token (Futuro)
+Cliente → Petición a ruta protegida
+         Header: Authorization: Bearer <token>
+                ↓
+         Middleware verifica el token
+                ↓
+         Si es válido → Permite acceso
+                ↓
+Cliente ← Respuesta
+	Estructura del JWT
+Payload (información que contiene nuestro token):
+{
+  "sub": "1",                    // Subject: ID del usuario
+  "userId": "1",                 // ID del usuario (explícito)
+  "email": "usuario@example.com",
+  "iat": 1700000000,            // Issued At: cuándo se creó
+  "exp": 1700003600             // Expiration: cuándo expira (1 hora)
+}
+Configuración de Seguridad
+Variables de Entorno
+JWT_SECRET=clave_secreta_super_segura_12345
+
+⚠️ Importante:
+- Esta clave NUNCA se sube a GitHub
+- Debe ser diferente en desarrollo y producción
+- Genera una clave aleatoria segura
+
+
+
+Parámetros de Seguridad
+- **Algoritmo:** HS256 (HMAC con SHA-256)
+- **Tiempo de expiración:** 1 hora
+- **Factor de costo bcrypt:** 10 rondas
+Implementación Técnica
+Encriptación de Contraseñas
+// Al registrar usuario
+const hashedPassword = await bcrypt.hash(password, 10);
+
+// Al hacer login
+const isValid = await bcrypt.compare(password, hashedPassword);
+Generación del Token
+```javascript
+const token = jwt.sign(
+  { 
+    sub: user.id.toString(),
+    userId: user.id.toString(),
+    email: user.email 
+  },
+  process.env.JWT_SECRET,
+  { expiresIn: "1h" }
+);
+Verificación del Token (Middleware futuro)
+jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+  if (err) {
+    // Token inválido o expirado
+  } else {	
+	
+
+    // Token válido
+  }
+});
+Buenas Prácticas Implementadas
+✅ **Contraseñas encriptadas** - Usamos bcrypt con 10 rondas  
+✅ **JWT_SECRET en .env** - No está en el código fuente  
+✅ **Tokens con expiración** - Expiran en 1 hora  
+✅ **No devolver passwords** - Solo enviamos datos seguros  
+✅ **Mensajes genéricos** - "Credenciales incorrectas" (no especificamos qué está mal)  
+✅ **Validación de datos** - Verificamos campos requeridos  
+✅ **Normalización** - Limpiamos y normalizamos emails  
+
+Rutas de Autenticación
+| Método | Ruta | Descripción | Autenticación |
+|--------|------|-------------|---------------|
+| POST | `/auth/register` | Registrar usuario | No |
+| POST | `/auth/login` | Iniciar sesión | No |
+
+Ejemplos de Uso
+Registrar un usuario
+POST http://localhost:3000/auth/register
+Content-Type: application/json
+
+{
+  "name": "Juan Pérez",
+  "email": "juan@example.com",
+  "password": "MiPassword123"
+}
+Hacer login
+POST http://localhost:3000/auth/login
+Content-Type: application/json
+
+{
+  "email": "juan@example.com",
+  "password": "MiPassword123"
+}
+Respuesta exitosa:
+{
+  "message": "Login exitoso",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": "1",
+    "name": "Juan Pérez",
+    "email": "juan@example.com"
+  }
+}
+Recursos Útiles
+- [JWT.io](https://jwt.io) - Decodificar tokens
+- [jsonwebtoken npm](https://www.npmjs.com/package/jsonwebtoken)
+- [bcryptjs npm](https://www.npmjs.com/package/bcryptjs)
