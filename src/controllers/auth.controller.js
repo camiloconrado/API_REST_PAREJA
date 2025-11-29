@@ -3,7 +3,6 @@ import prisma from "../prismaClient.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken"; // ← NUEVO: Importar JWT
 
-// ========== FUNCIÓN EXISTENTE DE REGISTRO ==========
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -86,7 +85,6 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    // PASO 3: Comparar la contraseña con bcrypt
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
@@ -95,12 +93,12 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    // PASO 4: Generar JWT
     const token = jwt.sign(
       {
         sub: user.id.toString(),        // Subject (estándar JWT)
         userId: user.id.toString(),     // ID del usuario
-        email: user.email               // Email del usuario
+        email: user.email,
+        role: user.role               // Email del usuario
       },
       process.env.JWT_SECRET,           // Clave secreta desde .env
       {
@@ -108,14 +106,14 @@ export const loginUser = async (req, res) => {
       }
     );
 
-    // PASO 5: Devolver el token al cliente
     return res.status(200).json({
       message: "Login exitoso",
       token: token,
       user: {
         id: user.id.toString(),
         name: user.name,
-        email: user.email
+        email: user.email,
+        role: user.role 
       }
     });
 

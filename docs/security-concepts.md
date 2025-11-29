@@ -327,3 +327,154 @@ Recursos Útiles
 CORS MDN
 express-rate-limit npm
 OWASP Rate Limiting
+
+
+¿Qué es Passport?
+
+Passport es una librería de autenticación para Node.js que permite manejar estrategias de seguridad como contraseñas, tokens, redes sociales, OAuth, etc.
+
+En este proyecto usamos la estrategia JWT, lo que significa que Passport validará los tokens enviados por el cliente.
+
+¿Por qué usar Passport si ya teníamos middleware propio?
+
+Antes del Commit 9, teníamos un middleware que:
+
+Extraía el token de Authorization
+Lo verificaba con jsonwebtoken
+Decodificaba el payload
+Dejaba los datos en req.user
+
+Eso funciona bien, pero Passport ofrece ventajas adicionales:
+
+✅ Ventajas de Passport JWT
+
+1. Estandarización
+-Passport es un estándar en el ecosistema Node.
+-Muchas empresas lo usan porque es confiable y extensible.
+
+2. Menos código repetido
+
+-La verificación del token no la tienes que escribir en cada middleware.
+-Solo declaras la estrategia UNA VEZ en passport.js.
+
+3. Integración con múltiples estrategias
+Si mañana quieres agregar:
+
+-Login con Google
+-Login con GitHub
+-OAuth2
+-Login con Facebook
+-Solo agregas nuevas estrategias sin reescribir autenticación.
+
+4. Mejor manejo de errores
+Passport ya tiene control sobre:
+
+-Tokens expirados
+-Tokens inválidos
+-Tokens mal formados
+
+5. Mayor seguridad
+Passport maneja automáticamente:
+
+-Extracción de token
+-Comparación de firmas
+-Validación de expiración
+-Payload limpio para el request
+
+¿Qué es Passport-JWT?
+
+Es la estrategia de Passport que permite validar tokens JWT enviados por el cliente.
+
+Se configura a través de:
+passport.use(new JwtStrategy({...}, async (payload, done) => {...}))
+
+
+Cómo funciona Passport JWT en este proyecto
+1. El cliente hace login
+Obtiene un token:
+Authorization: Bearer <token>
+
+2. Passport extrae el token
+Desde el header HTTP:
+Authorization: Bearer eyJhbGciOiJIUzI...
+
+3. Passport verifica el token
+Usando tu clave secreta JWT_SECRET.
+
+4. Passport busca al usuario en la base de datos
+Con payload.userId.
+
+5. Si todo está bien, añade a req.user:
+{
+  "id": "13",
+  "email": "usuario@example.com",
+  "role": "admin"
+}
+
+6. La ruta usa ese usuario
+Y aplica validaciones adicionales, como rol admin.
+
+6. Implementación técnica
+Archivo: src/config/passport.js
+
+Define:
+
+-Cómo extraer el token.
+-Qué clave usar.
+-Qué datos buscar en la BD.
+-Qué enviar a req.user.
+
+En app.js
+Se activa:
+import passport from "./config/passport.js";
+app.use(passport.initialize());
+
+En rutas protegidas ― Ejemplo
+passport.authenticate("jwt", { session: false })
+
+7. Ejemplo de flujo con Passport
+
+1. Usuario → POST /auth/login
+2. API → Devuelve JWT
+3. Usuario guarda JWT
+4. Usuario quiere ver /admin/users
+5. Envía:
+Authorization: Bearer <token>
+6. Passport:
+-Extracta token
+-Lo valida
+-Verifica expiración
+-Busca el usuario en BD
+-Añade info en req.user
+7. Middleware isAdmin revisa rol
+8. Respuesta correcta
+
+8. Ventaja adicional sobre middleware propio
+
+Antes verificabas el token así:
+const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+Ahora lo maneja Passport automáticamente.
+Así no te preocupas por:
+-tokens vencidos
+-tokens corruptos
+-tokens sin formato
+-payload mal formado
+-errores de firma
+Passport se encarga.
+
+Por eso es común usar Passport + Middleware Propio, como hicimos:
+
+| Tarea                     | ¿Quién la hace?   |
+| ------------------------- | ----------------- |
+| Verificar token           | Passport          |
+| Buscar usuario ― opcional | Passport          |
+| Validar rol               | Middleware propio |
+
+9. ¿Por qué mantener ambos? (Passport + Middleware)
+
+Porque:
+-Passport asegura la autenticación (probar que el usuario existe).
+-Nuestro middleware isAdmin asegura la autorización (roles y permisos).
+
+Esto es lo que se hace en aplicaciones reales.

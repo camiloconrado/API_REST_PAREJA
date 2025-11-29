@@ -8,20 +8,18 @@ export const authMiddleware = (req, res, next) => {
       return res.status(401).json({ message: "No token provided" });
     }
 
-    // Formato: Bearer token
     const token = header.split(" ")[1];
 
     if (!token) {
       return res.status(401).json({ message: "Invalid token format" });
     }
 
-    // Verificar token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Adjuntar información del usuario al request
     req.user = {
       id: decoded.userId,
-      email: decoded.email
+      email: decoded.email,
+      role: decoded.role  
     };
 
     next();
