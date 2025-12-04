@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tareas</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <h1>Mis Tareas</h1>
+
+    <button id="logoutBtn">Cerrar sesión</button>
+
+    <section>
+        <h2>Crear nueva tarea</h2>
+
+        <form id="taskForm">
+            <input type="text" id="taskTitle" placeholder="Título" required />
+            <input type="text" id="taskDescription" placeholder="Descripción" />
+            <button type="submit">Crear</button>
+        </form>
+    </section>
+
+    <section>
+        <h2>Tareas registradas</h2>
+        <ul id="taskList"></ul>
+    </section>
+
+    <script src="tasks.js"></script>
+</body>
+</html>
